@@ -13,24 +13,34 @@ pub fn render(
     focus: &Focus,
     elapsed: &std::time::Duration,
     connected: bool,
+    connection_name: Option<&String>,
+    _show_connection_panel: bool,
 ) {
     let mode_str = match mode {
         Mode::Normal => "NORMAL",
         Mode::Insert => "INSERT",
         Mode::Visual => "VISUAL",
+        Mode::PropertyEditor => "PROPERTY",
     };
 
     let focus_str = match focus {
         Focus::Schema => "Schema",
         Focus::QueryInput => "SQL",
         Focus::Results => "Results",
+        Focus::ConnectionList => "Connections",
+        Focus::ConnectionForm => "ConnForm",
     };
 
-    let conn_str = if connected {
-        Span::styled("● Connected", Style::default().fg(Color::Green))
+    let conn_symbol = if connected {
+        "●"
     } else {
-        Span::styled("○ Disconnected", Style::default().fg(Color::Red))
+        "○"
     };
+    let conn_color = if connected { Color::Green } else { Color::Red };
+
+    let conn_name = connection_name
+        .map(|s| s.as_str())
+        .unwrap_or("Disconnected");
 
     let mode_span = Span::styled(
         format!(" {mode_str} "),
@@ -40,6 +50,7 @@ pub fn render(
                 Mode::Normal => Color::Blue,
                 Mode::Insert => Color::Green,
                 Mode::Visual => Color::Yellow,
+                Mode::PropertyEditor => Color::Magenta,
             })
             .add_modifier(Modifier::BOLD),
     );
@@ -62,7 +73,10 @@ pub fn render(
     );
 
     let line = Line::from(vec![
-        conn_str,
+        Span::styled(
+            format!(" {conn_symbol} {conn_name} "),
+            Style::default().fg(conn_color),
+        ),
         Span::raw(" │"),
         mode_span,
         focus_span,

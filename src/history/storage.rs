@@ -55,11 +55,6 @@ impl HistoryStorage {
         scored.into_iter().take(50).map(|(_, e)| e).collect()
     }
 
-    #[allow(dead_code)]
-    pub fn all(&self) -> &[HistoryEntry] {
-        &self.entries
-    }
-
     fn load(&mut self) {
         if !self.path.exists() {
             return;
@@ -77,14 +72,18 @@ impl HistoryStorage {
 
     fn save(&self) {
         if let Some(parent) = self.path.parent() {
-            let _ = std::fs::create_dir_all(parent);
+            if let Err(e) = std::fs::create_dir_all(parent) {
+                eprintln!("Warning: failed to create history directory: {e}");
+            }
         }
         let content: Vec<String> = self
             .entries
             .iter()
             .map(|e| serde_json::to_string(e).unwrap_or_default())
             .collect();
-        let _ = std::fs::write(&self.path, content.join("\n"));
+        if let Err(e) = std::fs::write(&self.path, content.join("\n")) {
+            eprintln!("Warning: failed to save history: {e}");
+        }
     }
 }
 

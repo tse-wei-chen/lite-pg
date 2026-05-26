@@ -1,6 +1,6 @@
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 
-pub fn main_layout(area: Rect) -> [Rect; 4] {
+pub fn main_layout(area: Rect) -> [Rect; 5] {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
@@ -15,6 +15,11 @@ pub fn main_layout(area: Rect) -> [Rect; 4] {
         .constraints([Constraint::Percentage(30), Constraint::Percentage(70)])
         .split(chunks[1]);
 
+    let middle_chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(0), Constraint::Length(1)])
+        .split(chunks[2]);
+
     let right_chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
@@ -25,5 +30,6 @@ pub fn main_layout(area: Rect) -> [Rect; 4] {
         top_chunks[0],
         right_chunks[0],
         right_chunks[1],
+        middle_chunks[1],
     ]
 }

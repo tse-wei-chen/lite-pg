@@ -31,3 +31,10 @@ pub fn copy_to_clipboard(text: &str) -> Result<(), String> {
     let mut ctx = arboard::Clipboard::new().map_err(|e| e.to_string())?;
     ctx.set_text(text).map_err(|e| e.to_string())
 }
+
+pub fn save_to_file(text: &str, path: &std::path::Path) -> Result<(), String> {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    std::fs::write(path, text).map_err(|e| e.to_string())
+}

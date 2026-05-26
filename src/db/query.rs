@@ -67,7 +67,10 @@ fn format_cell(row: &PgRow, i: usize) -> String {
         if let Ok(bytes) = raw.as_bytes() {
             return String::from_utf8_lossy(bytes).to_string();
         }
-        return String::new();
+        if let Ok(text) = std::str::from_utf8(raw.as_bytes().unwrap_or(&[])) {
+            return text.to_string();
+        }
+        return format!("{:?}", raw.as_bytes().unwrap_or(&[]));
     }
 
     "?".to_string()
@@ -134,17 +137,4 @@ pub async fn execute_query(pool: &PgPool, sql: &str) -> QueryResult {
             }
         }
     }
-}
-
-#[allow(dead_code)]
-pub async fn execute_explain(pool: &PgPool, sql: &str) -> QueryResult {
-    let trimmed = sql.trim();
-    if trimmed.is_empty() {
-        return QueryResult {
-            error: Some("Empty query".to_string()),
-            ..Default::default()
-        };
-    }
-    let explain_sql = format!("EXPLAIN ANALYZE {}", trimmed);
-    execute_query(pool, &explain_sql).await
 }
