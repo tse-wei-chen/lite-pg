@@ -287,7 +287,7 @@ pub async fn fetch_ddl(
                 r#"SELECT pg_get_viewdef({}, true) AS ddl"#,
                 crate::util::build_regclass(schema, object)
             );
-            let row = sqlx::query(&sql).fetch_one(pool).await?;
+            let row = sqlx::query(sqlx::AssertSqlSafe(&*sql)).fetch_one(pool).await?;
             let def: String = row.get("ddl");
             let kind = if mat { "MATERIALIZED VIEW" } else { "VIEW" };
             Ok(format!(
@@ -593,7 +593,7 @@ async fn fetch_row_count(pool: &PgPool, schema: &str, table: &str) -> Result<Opt
         r#"SELECT reltuples::bigint AS cnt FROM pg_catalog.pg_class WHERE oid = {}"#,
         crate::util::build_regclass(schema, table)
     );
-    let row = sqlx::query(&sql).fetch_optional(pool).await?;
+    let row = sqlx::query(sqlx::AssertSqlSafe(&*sql)).fetch_optional(pool).await?;
     Ok(row.map(|r| r.get("cnt")))
 }
 
@@ -602,7 +602,7 @@ async fn fetch_size(pool: &PgPool, schema: &str, table: &str) -> Result<Option<i
         r#"SELECT pg_total_relation_size({}) AS size"#,
         crate::util::build_regclass(schema, table)
     );
-    let row = sqlx::query(&sql).fetch_optional(pool).await?;
+    let row = sqlx::query(sqlx::AssertSqlSafe(&*sql)).fetch_optional(pool).await?;
     Ok(row.map(|r| r.get("size")))
 }
 
@@ -685,7 +685,7 @@ pub async fn prefetch_all_details(
              AND cl.relnamespace=(SELECT n.oid FROM pg_catalog.pg_namespace n WHERE n.nspname=o.s)
          ORDER BY o.s, o.n, c.ordinal_position"
     );
-    let col_fut = sqlx::query(&col_sql).fetch_all(pool);
+    let col_fut = sqlx::query(sqlx::AssertSqlSafe(&*col_sql)).fetch_all(pool);
 
     let idx_sql = format!(
         "WITH o(s,n) AS (VALUES {in_clause})
@@ -700,7 +700,7 @@ pub async fn prefetch_all_details(
          JOIN pg_catalog.pg_am am ON am.oid=c.relam
          ORDER BY o.s, o.n, i.indexname"
     );
-    let idx_fut = sqlx::query(&idx_sql).fetch_all(pool);
+    let idx_fut = sqlx::query(sqlx::AssertSqlSafe(&*idx_sql)).fetch_all(pool);
 
     let trg_sql = format!(
         "WITH o(s,n) AS (VALUES {in_clause})
@@ -713,7 +713,7 @@ pub async fn prefetch_all_details(
          WHERE t.tgname IS NOT NULL AND NOT t.tgisinternal
          ORDER BY o.s, o.n, tgname"
     );
-    let trg_fut = sqlx::query(&trg_sql).fetch_all(pool);
+    let trg_fut = sqlx::query(sqlx::AssertSqlSafe(&*trg_sql)).fetch_all(pool);
 
     let con_sql = format!(
         "WITH o(s,n) AS (VALUES {in_clause})
@@ -731,7 +731,7 @@ pub async fn prefetch_all_details(
           WHERE tc.constraint_type IN ('PRIMARY KEY','FOREIGN KEY','UNIQUE','CHECK')
          ORDER BY o.s, o.n, tc.constraint_name"
     );
-    let con_fut = sqlx::query(&con_sql).fetch_all(pool);
+    let con_fut = sqlx::query(sqlx::AssertSqlSafe(&*con_sql)).fetch_all(pool);
 
     let (col_rows, idx_rows, trg_rows, con_rows) = tokio::join!(col_fut, idx_fut, trg_fut, con_fut);
 

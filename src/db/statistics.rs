@@ -94,17 +94,20 @@ pub async fn fetch_db_stats(pool: &PgPool) -> Result<Vec<DbStatEntry>> {
     let rows = sqlx::query(
         r#"
         SELECT
-            datname,
-            pg_database_size(datname) as size,
-            numbackends as connections,
-            xact_commit + xact_rollback as transactions,
-            CASE WHEN blks_hit + blks_read > 0
-                THEN round((blks_hit::numeric / (blks_hit + blks_read) * 100), 1)
-                ELSE 0
-            END as cache_hit_ratio
-        FROM pg_stat_database
-        WHERE datistemplate = false
-        ORDER BY datname
+            s.datname,
+            pg_database_size(s.datname) as size,
+            s.numbackends as connections,
+            s.xact_commit + s.xact_rollback as transactions,
+            CAST(
+                CASE WHEN s.blks_hit + s.blks_read > 0
+                    THEN round((s.blks_hit::numeric / (s.blks_hit + s.blks_read) * 100), 1)
+                    ELSE 0
+                END AS double precision
+            ) as cache_hit_ratio
+        FROM pg_stat_database s
+        JOIN pg_database d ON s.datname = d.datname
+        WHERE d.datistemplate = false
+        ORDER BY s.datname
         "#,
     )
     .fetch_all(pool)
@@ -112,12 +115,17 @@ pub async fn fetch_db_stats(pool: &PgPool) -> Result<Vec<DbStatEntry>> {
 
     Ok(rows
         .iter()
-        .map(|r| DbStatEntry {
-            name: r.get("datname"),
-            size: format_size(r.get::<i64, _>("size")),
-            connections: r.get("connections"),
-            transactions: r.get("transactions"),
-            cache_hit_ratio: r.get::<f64, _>("cache_hit_ratio"),
+        .map(|r| {
+            let connections_i32: i32 = r.get("connections");
+            let transactions_i64: i64 = r.get("transactions");
+
+            DbStatEntry {
+                name: r.get("datname"),
+                size: format_size(r.get::<i64, _>("size")),
+                connections: connections_i32.into(),
+                transactions: transactions_i64,
+                cache_hit_ratio: r.get::<f64, _>("cache_hit_ratio"),
+            }
         })
         .collect())
 }
@@ -175,7 +183,7 @@ pub async fn fetch_table_stats(pool: &PgPool, schema: Option<&str>) -> Result<Ve
             r#"
             SELECT
                 schemaname as schema,
-                tablename as table,
+                relname as table,
                 seq_scan,
                 idx_scan,
                 n_tup_ins,
@@ -184,7 +192,7 @@ pub async fn fetch_table_stats(pool: &PgPool, schema: Option<&str>) -> Result<Ve
                 n_dead_tup
             FROM pg_stat_user_tables
             WHERE schemaname = $1
-            ORDER BY schemaname, tablename
+            ORDER BY schemaname, relname
             "#,
         )
         .bind(s)
@@ -195,7 +203,7 @@ pub async fn fetch_table_stats(pool: &PgPool, schema: Option<&str>) -> Result<Ve
             r#"
             SELECT
                 schemaname as schema,
-                tablename as table,
+                relname as table,
                 seq_scan,
                 idx_scan,
                 n_tup_ins,
@@ -203,7 +211,7 @@ pub async fn fetch_table_stats(pool: &PgPool, schema: Option<&str>) -> Result<Ve
                 n_tup_del,
                 n_dead_tup
             FROM pg_stat_user_tables
-            ORDER BY schemaname, tablename
+            ORDER BY schemaname, relname
             "#,
         )
         .fetch_all(pool)

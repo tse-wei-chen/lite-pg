@@ -92,7 +92,7 @@ pub async fn execute_query(pool: &PgPool, sql: &str) -> QueryResult {
         };
     }
 
-    match sqlx::query(trimmed).fetch_all(pool).await {
+    match sqlx::query(sqlx::AssertSqlSafe(trimmed)).fetch_all(pool).await {
         Ok(rows) => {
             if rows.is_empty() {
                 return QueryResult {
@@ -121,7 +121,7 @@ pub async fn execute_query(pool: &PgPool, sql: &str) -> QueryResult {
             }
         }
         Err(fetch_err) => {
-            match sqlx::query(trimmed).execute(pool).await {
+            match sqlx::query(sqlx::AssertSqlSafe(trimmed)).execute(pool).await {
                 Ok(result) => QueryResult {
                     columns: vec!["RESULT".to_string()],
                     rows: vec![vec![format!("{} rows affected", result.rows_affected())]],

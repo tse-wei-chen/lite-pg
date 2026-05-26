@@ -200,8 +200,8 @@ struct MachineCipher {
 impl MachineCipher {
     fn new() -> Self {
         let mut key = [0u8; 32];
-        use rand::RngCore;
-        rand::thread_rng().fill_bytes(&mut key);
+        use rand::Rng;
+        rand::rng().fill_bytes(&mut key);
         MachineCipher { key }
     }
 
